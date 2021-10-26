@@ -18,6 +18,8 @@ the root of the drive would be a good choice as the main directory).
 
 Run "build.bat"
 
+When using Windows10/64bit take a look to the 'DosBox' tool
+ 
 Build it manualy 
 ----------------
 (Without make or build.bat)
