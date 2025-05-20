@@ -41,6 +41,7 @@ Modifications
 Frequency independant modification:
 
 * [EPROM update](doc/EPROM_update.md)
+* For the HF modifications needed click to the related link in table: [Bands list](doc/PRM80_bands.md)
 * [Connectors informations](doc/Connectors_informations.md)
 * [Mike gain](doc/Mike_gain.md)
 * [Tx power ajustement](doc/Tx_power_ajustement.md)
