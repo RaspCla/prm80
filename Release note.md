@@ -5,6 +5,7 @@ Version 5.0
 * Modified 'P' command to enter also shift/split
 * Added RSSI to "E" command
 * usage of 3 additional display digits to display split frequency (PRM8070 only)
+* added support for HAMLIB (V4.5 or higher)
 
 Version 4.0
 ===========
