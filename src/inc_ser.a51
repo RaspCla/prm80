@@ -520,7 +520,9 @@ tch_D:           CJNE       A,#'D',tch_E       ; - Touche [D] ?
                  JNB        XXDD_OK, tch_d_end ; 
 				 mov	    mode, a
 				 call	    save_mode		; Claude!: new: keep the power setting after a restart
-				 call	    load_state
+				 call	    load_power		; Claude!: was "call load_state": that also set the
+							; Claude!: synthesizer to the channel frequency again,
+							; Claude!: so a frequency set with "R" (VFO) was lost
 				 call	    update_lcd		 
 tch_d_end:
 				 JMP        tch_suiv           ; 		 

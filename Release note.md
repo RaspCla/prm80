@@ -9,7 +9,7 @@ Error corrections (Claude!: made with Claude, marked "Claude!:" in the source co
 * Scan: no endless loop any more if all channels are locked out (the scan stops), channel number after "Q" while scanning corrected
 * TX while scanning: the scanned channel is kept as current channel (display and "E" showed the start channel before)
 * "N" and "Q" commands stop the scan; "Q" tunes to channel 0
-* "D" command: the power setting is kept after a restart
+* "D" command: the power setting is kept after a restart, a frequency set with "R" is no longer reset to the channel frequency
 
 Version 5.0
 ===========
