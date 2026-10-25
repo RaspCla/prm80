@@ -755,14 +755,31 @@ scan:
 	call	wdt_reset
 
 	clr	mode2.1
+	mov	dph, #ram_area_config			; Claude!: new: count the channels tried, so
+	mov	dpl, #ram_max_chan			; Claude!: that the loop ends if all channels
+	movx	a, @dptr				; Claude!: are locked out (before: endless loop,
+	inc	a					; Claude!: the radio did not react any more)
+	mov	scan_left, a				; Claude!:
 scan_loop:
 	call	wdt_reset
+	mov	a, scan_left				; Claude!: all channels tried?
+	jnz	scan_next				; Claude!:
+	call	switch_scan_off				; Claude!: all locked out: stop the scan
+	call	load_state				; Claude!: back to the channel scanned last
+	setb	mode.7					; Claude!: refresh the display
+	ret						; Claude!:
+scan_next:						; Claude!:
+	dec	scan_left				; Claude!:
 	inc	chan_scan
 	mov	dph, #ram_area_config
 	mov	dpl, #ram_max_chan
 	movx	a, @dptr
-	inc	a
-	cjne	a, chan_scan, scan_chan_update
+	; Claude!: was "inc a / cjne a, chan_scan, ...": only equal was tested, a
+	; Claude!: chan_scan above the last channel (number of channels reduced
+	; Claude!: with Q while scanning) counted up to 255 through invalid RAM.
+	clr	c					; Claude!: chan_scan > max_chan ?
+	subb	a, chan_scan				; Claude!:
+	jnc	scan_chan_update			; Claude!: no: channel exists
 	mov	chan_scan, #0
 
 scan_chan_update:
