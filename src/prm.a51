@@ -150,6 +150,7 @@ rssi_hold           EQU RAM+35          ; rssi previous value
 chan_scan           EQU RAM+36          ; Hold channel for scanning 
 shift_dHi           EQU RAM+37          ; shift frequency decimal low nibble: *100
 shift_dLo           EQU RAM+38          ; shift frequency decimal high nibble: *10, low nibble: *1
+scan_left           EQU RAM+39          ; Claude!: new: channels left to try in scan_loop (all locked out)
 
 
 
@@ -424,7 +425,12 @@ m_end:
 ; TX loop
 ;----------------------------------------
 tx:
-	clr	mode2.0			; stop scanning
+	; Claude!: was "clr mode2.0": the scan stopped, but RAM_CHAN kept the channel
+	; Claude!: the scan had started on, so display and "E" showed the wrong
+	; Claude!: channel while the radio was on the scanned one.
+	jnb	mode2.0, tx_noscan	; Claude!:
+	call	switch_scan_off		; Claude!: stop scanning, stay on the scanned channel
+tx_noscan:				; Claude!:
 
 	; Suppression du squelch si besoin
 	jnb	mode.0, tx_cont

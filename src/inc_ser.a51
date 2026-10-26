@@ -519,7 +519,10 @@ tch_D:           CJNE       A,#'D',tch_E       ; - Touche [D] ?
                  call       XXinRS232          ; 
                  JNB        XXDD_OK, tch_d_end ; 
 				 mov	    mode, a
-				 call	    load_state
+				 call	    save_mode		; Claude!: new: keep the power setting after a restart
+				 call	    load_power		; Claude!: was "call load_state": that also set the
+							; Claude!: synthesizer to the channel frequency again,
+							; Claude!: so a frequency set with "R" (VFO) was lost
 				 call	    update_lcd		 
 tch_d_end:
 				 JMP        tch_suiv           ; 		 
@@ -588,6 +591,7 @@ tch_N:           CJNE       A,#'N',tch_O       ; - Touche [N] ?
                  call       MESS_RS232         ; 
                  call       DDinRS232          ; 
                  JNB        XXDD_OK, tch_n_end ; 
+				 clr	    mode2.0		; Claude!: new: selecting a channel stops the scan
 				 mov	    dph, #ram_area_config
 				 mov	    dpl, #ram_chan
 				 movx	    @dptr, a
@@ -620,6 +624,7 @@ tch_S:           CJNE       A,#'S',tch_T       ; - Touche [S] ?
                  MOV        A,Page             ; 
                  call       HEX_RS232          ; 
                  call       CRLF_RS232         ; 
+		 call	    reload_config_values	; Claude!: new: shift and scan duration of the RAM read
 		 call	    load_state
 		 call	    update_lcd
                  JMP        tch_suiv           ; 
@@ -816,6 +821,7 @@ mod_byte:        call       CRLF_RS232         ;
 incr_adr:        INC        DPTR               ; 
                  JMP        mod_byte           ; 
 fin_mod:         call       CRLF_RS232         ; 
+		 call	    reload_ram_config	; Claude!: new: checksums, shift and scan duration from the RAM
 		 call	    load_state
 		 call	    update_lcd
                  POP        DPL                ; 
@@ -1024,6 +1030,7 @@ set_max_chan:
 	CALL	DDinRS232
     JNB		XXDD_OK,fin_set_max_chan
 
+	clr		mode2.0				; Claude!: new: stop the scan (channel set to 0)
 	mov		dph, #ram_area_config
 	mov		dpl, #ram_max_chan
 	movx	@dptr, a
@@ -1040,6 +1047,7 @@ set_max_chan:
 	mov		dph, #ram_area_config
 	mov		dpl, #ram_config_sum
 	movx	@dptr, a
+	call	load_state			; Claude!: new: tune to channel 0 (only the display showed it before)
 	
 fin_set_max_chan:
 	call	CRLF_RS232		
@@ -1061,6 +1069,9 @@ send_state:
 	mov	    dph, #ram_area_config
 	mov	    dpl, #ram_chan
 	movx	a, @dptr
+	jnb	    mode2.0, ss_chan		; Claude!: new: while scanning the channel being
+	mov	    a, chan_scan		; Claude!: received (was the channel the scan started on)
+ss_chan:					; Claude!:
 	call	HEX_RS232
 	mov	    a, chan_state
 	call	HEX_RS232
@@ -1227,9 +1238,9 @@ Message39:    DB   "Mode : ",0
 
 MessageVersion: 
 IF TARGET EQ 8060
-              DB   "PRM8060 V5.0"
+              DB   "PRM8060 V5.1"		; Claude!: version 5.1 (was 5.0)
 ELSEIF TARGET EQ 8070
-              DB   "PRM8070 V5.0"
+              DB   "PRM8070 V5.1"		; Claude!: version 5.1 (was 5.0)
 ENDIF
 
 IF FREQ EQ 144

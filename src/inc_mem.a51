@@ -36,7 +36,8 @@ get_freq_r1:
 	
 
 get_freq2:
-	jb	chan_state.1, get_freq_reverse
+	; Claude!: no jump to get_freq_reverse any more, reverse is handled at the
+	; Claude!: end of the shift calculation (gfn_reverse) for the same channel r1
 	
 get_freq_normal:
 	; Recuperation de la frequence
@@ -121,7 +122,7 @@ gnf_shift_p:                                ; Shift positif
 	mov	a, shift_hi
 	addc	a, tx_freq_hi
 	mov	tx_freq_hi, a
-	jmp	gfn_end0
+	jmp	gfn_reverse				; Claude!: was jmp gfn_end0 (reverse test added)
 gnf_shift_n:                                ; Shift negatif
 	clr	c
 	mov	r0, shift_lo
@@ -132,6 +133,47 @@ gnf_shift_n:                                ; Shift negatif
 	subb	a, shift_hi
 	mov	tx_freq_hi, a
 
+gfn_reverse:
+	; Claude!: Reverse mode (only with shift enabled): TX on the channel
+	; Claude!: frequency, RX on the frequency with shift. Uses the channel in
+	; Claude!: RAM (r1, also while scanning) and its own shift. The old
+	; Claude!: get_freq_reverse took the frequency from freq_list in the program
+	; Claude!: memory (factory channels), always RAM_CHAN and the shift of the
+	; Claude!: channel tuned before.
+	; Claude!: Here: tx_freq = channel +/- shift, rx_freq = channel +/- IF.
+	jnb	chan_state.1, gfn_end0			; Claude!: no reverse
+	mov	r0, tx_freq_lo				; Claude!: r0/r1 = frequency with shift
+	mov	r1, tx_freq_hi				; Claude!: (r1 channel no longer needed)
+IF FREQ EQ 144
+	clr	c					; Claude!: TX = RX - IF = channel frequency
+	mov	a, rx_freq_lo
+	subb	a, #fi_lo
+	mov	tx_freq_lo, a
+	mov	a, rx_freq_hi
+	subb	a, #fi_hi
+	mov	tx_freq_hi, a
+	mov	a, r0					; Claude!: RX = frequency with shift + IF
+	add	a, #fi_lo
+	mov	rx_freq_lo, a
+	mov	a, r1
+	addc	a, #fi_hi
+	mov	rx_freq_hi, a
+ELSEIF FREQ EQ 430
+	mov	a, rx_freq_lo				; Claude!: TX = RX + IF = channel frequency
+	add	a, #fi_lo
+	mov	tx_freq_lo, a
+	mov	a, rx_freq_hi
+	addc	a, #fi_hi
+	mov	tx_freq_hi, a
+	clr	c					; Claude!: RX = frequency with shift - IF
+	mov	a, r0
+	subb	a, #fi_lo
+	mov	rx_freq_lo, a
+	mov	a, r1
+	subb	a, #fi_hi
+	mov	rx_freq_hi, a
+ENDIF
+
 gfn_end0:
 IF TARGET EQ 8070
 	call 	shift_dsp                       ; write shift value to dez. storage and display (PRM8070 only)
@@ -141,61 +183,10 @@ ENDIF
 gfn_end:
 	ret
 
-get_freq_reverse:
-	call	wdt_reset
-
-	mov	dph, #RAM_AREA_CONFIG
-	mov	dpl, #RAM_CHAN
-	movx	a, @dptr
-	mov	dptr,	#freq_list
-	mov	r1, a
-	rl	a
-	mov	r0, a
-	movc	a, @a+dptr
-	mov	tx_freq_hi, a
-	
-	inc	r0
-	mov	a, r0
-	movc	a, @a+dptr
-	mov	tx_freq_lo, a
-
-IF FREQ EQ 144
-	mov	a, #fi_lo
-	add	a, tx_freq_lo
-	mov	rx_freq_lo, a
-	mov	a, #fi_hi
-	addc	a, tx_freq_hi
-	mov	rx_freq_hi, a
-ELSEIF FREQ EQ 430
-	mov	a, tx_freq_lo
-	clr	c
-	subb	a, #fi_lo
-	mov	rx_freq_lo, a
-	mov	a, tx_freq_hi
-	subb	a, #fi_hi
-	mov	rx_freq_hi, a
-ENDIF
-	jnb	chan_state.2, grf_shift_n	; Test si shift - ou +
-grf_shift_p:		; Shift positif
-	mov	r0, shift_lo
-	mov	a, rx_freq_lo
-	add	a, r0
-	mov	rx_freq_lo, a
-	mov	a, shift_hi
-	addc	a, rx_freq_hi
-	mov	rx_freq_hi, a
-	jmp	r_end
-grf_shift_n:		; Shift negatif
-	clr	c
-	mov	r0, shift_lo
-	mov	a, rx_freq_lo
-	subb	a, r0
-	mov	rx_freq_lo, a
-	mov	a, rx_freq_hi
-	subb	a, shift_hi
-	mov	rx_freq_hi, a
-r_end:
-	ret
+; Claude!: get_freq_reverse removed (see gfn_reverse above). It read the
+; Claude!: frequency from freq_list (program memory) instead of the RAM, always
+; Claude!: for RAM_CHAN (wrong while scanning) and with the shift of the
+; Claude!: channel tuned before; it also worked without shift enabled.
 
 ;----------------------------------------
 ; Recuperation des parametres
@@ -229,6 +220,52 @@ lp_load:
 	movx	a, @dptr
 	mov	scan_duration, a
 	ret
+
+;----------------------------------------
+; Claude!: new: take over configuration values changed in the RAM (commands
+; Claude!: M and S): default shift and scan duration, all checksums new.
+; Claude!: Before, a value written with "M" was only used after a restart and
+; Claude!: the RAM checksums were wrong (RAM thrown away at the next start).
+;----------------------------------------
+reload_ram_config:					; Claude!: new routine
+	call	update_all_checksums			; Claude!:
+reload_config_values:					; Claude!: (command S: RAM read from the EEPROM)
+	mov	dph, #RAM_AREA_CONFIG			; Claude!:
+	mov	dpl, #RAM_SHIFT_LO			; Claude!:
+	movx	a, @dptr				; Claude!:
+	mov	shift_lo, a				; Claude!:
+	mov	dpl, #RAM_SHIFT_HI			; Claude!:
+	movx	a, @dptr				; Claude!:
+	mov	shift_hi, a				; Claude!:
+	mov	dpl, #RAM_SCAN_DURATION			; Claude!:
+	movx	a, @dptr				; Claude!:
+	jnz	rrc_scan				; Claude!: 0 would mean 256 * 50 ms
+	inc	a					; Claude!:
+rrc_scan:						; Claude!:
+	mov	scan_duration, a			; Claude!:
+	ret						; Claude!:
+
+;----------------------------------------
+; Claude!: new: calculate and store the checksums of all four RAM areas
+;----------------------------------------
+update_all_checksums:					; Claude!: new routine
+	call	load_config_area_checksum		; Claude!:
+	mov	dph, #RAM_AREA_CONFIG			; Claude!:
+	mov	dpl, #RAM_CONFIG_SUM			; Claude!:
+	movx	@dptr, a				; Claude!:
+	call	load_freq_area_checksum			; Claude!:
+	mov	dph, #RAM_AREA_CONFIG			; Claude!:
+	mov	dpl, #RAM_FREQ_SUM			; Claude!:
+	movx	@dptr, a				; Claude!:
+	call	load_shift_area_checksum		; Claude!:
+	mov	dph, #RAM_AREA_CONFIG			; Claude!:
+	mov	dpl, #RAM_SHIFT_SUM			; Claude!:
+	movx	@dptr, a				; Claude!:
+	call	load_state_area_checksum		; Claude!:
+	mov	dph, #RAM_AREA_CONFIG			; Claude!:
+	mov	dpl, #RAM_STATE_SUM			; Claude!:
+	movx	@dptr, a				; Claude!:
+	ret						; Claude!:
 
 ;----------------------------------------
 ; Test checksum
