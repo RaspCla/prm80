@@ -1,3 +1,13 @@
+Version 5.2
+===========
+Changes (Claude!: made with Claude, marked "Claude!:" in the source code)
+* Keys while scanning: a short press of any key only stops the scan on the channel shown, the key itself has no effect. A long press does nothing while scanning (before: the key acted on the channel the scan was on at that moment, e.g. the scan lock out on a random channel). The keys work as usual when the scan is stopped.
+* Reverse key: reverse is only toggled for the current channel, the reverse bit stored in the channel is not changed. It ends when another channel is selected (key, "N", "Q", scan). A channel with reverse stored ("P" command, channel manager) keeps it.
+* "T" command: shift, shift + and lock out are stored as before, the reverse bit acts like the reverse key (temporary). While scanning it stops the scan and acts on the channel being received (before: on the channel the scan started on, while "E" reported the received one).
+* "R" command: stops the scan (before the next scan step overwrote the frequencies).
+* Channel up/down while scanning wrote the channel to a random RAM address (DPTR not set, error of V4). Not reachable any more (keys only stop the scan), corrected anyway.
+* The serial protocol (formats, lengths, prompts) is unchanged.
+
 Version 5.1
 ===========
 Error corrections (Claude!: made with Claude, marked "Claude!:" in the source code)
