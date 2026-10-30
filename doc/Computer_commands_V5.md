@@ -180,7 +180,9 @@ This command force the RAM data to be remplaced by the EEPROM data. Can be used 
 
 T: Set current channel state
 ----------------------------
-Change the current channel state byte. This function do not change the saved value in RAM or EEPROM.
+Change the current channel state byte (2 decimal digits, despite the "$" of the prompt). Shift enabled, shift + and lock out are stored in the channel in the RAM (not in the EEPROM, see "X"). The reverse bit (V5.2) only toggles reverse for the current channel, like the reverse key: the reverse bit stored in the channel is not changed, and the reverse ends when another channel is selected.
+
+While scanning (V5.2), the command first stops the scan and then acts on the channel being received, as reported by "E".
 
 V: Print firmware version
 -------------------------

@@ -96,9 +96,15 @@ disp_state          EQU RAMbit+8        ; Symbole a afficher pour prm8070
 mode2               EQU RAMbit+9        ; Mode, 2eme octet / 2nd mode byte
                                         ; b0: scan running      b1: scan increment chan
                                         ; b2: RSSI print enable b3: RSSI print flag
-                                        ; b4:                   b5: 
+                                        ; b4: reverse toggled   b5: 
+                                        ;     (Claude!: V5.2)
                                         ; b6:                   b7:
 
+
+rev_toggle          EQU mode2.4         ; Claude!: V5.2: reverse toggled for the current
+                                        ; Claude!: channel only (key, T command); the bit
+                                        ; Claude!: stored in the channel is not changed,
+                                        ; Claude!: cleared when the channel is changed
 
 disp_hold           EQU RAM+0           ; Sauvegarde de de l'affichage des symboles
                                         ; Saving the symbol display

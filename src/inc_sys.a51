@@ -641,6 +641,9 @@ b_l_cont:
 	mov	a, r0
 	mov	but_timer, #0
 	mov	but_timer2, #0
+	jb	mode2.0, b_long_end		; Claude!: V5.2: while scanning a long key
+						; Claude!: press does nothing (the channel
+						; Claude!: shown changes all the time)
 	jmp	b_decoding
 b_long_end:
 	ret
@@ -661,6 +664,12 @@ b_key_release:
 	mov	r1, #0						; Effacent flag appui long
 	mov	a, r0
 	jnz	b_key_release_end
+	jnb	mode2.0, b_kr_decode			; Claude!: V5.2: while scanning a short key
+	mov	but_hold_state, r0			; Claude!: press only stops the scan, the
+	call	switch_scan_off				; Claude!: radio stays on the channel shown;
+	setb	mode.7					; Claude!: the key itself has no effect
+	ret						; Claude!:
+b_kr_decode:						; Claude!:
 	jmp	b_decoding					; Si les touches sont relachées
 b_key_release_end:
 	ret
@@ -726,6 +735,10 @@ switch_scan:
 	call	wdt_reset
 	jb	mode2.0, switch_scan_off
 	;Scanning turned on
+	jnb	rev_toggle, ss_on			; Claude!: V5.2: a toggled reverse ends
+	clr	rev_toggle				; Claude!: when the scan starts
+	call	load_state				; Claude!:
+ss_on:							; Claude!:
 	mov	dph, #ram_area_config
 	mov	dpl, #ram_chan
 	movx	a, @dptr
@@ -783,6 +796,7 @@ scan_next:						; Claude!:
 	mov	chan_scan, #0
 
 scan_chan_update:
+	clr	rev_toggle				; Claude!: V5.2: new channel, stored reverse
 	mov	r1, chan_scan
 	call	get_freq_r1
 	jb	chan_state.3, scan_loop
