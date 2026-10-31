@@ -33,6 +33,9 @@ get_freq_r1:
 	mov	dpl, r1
 	movx	a, @dptr
 	mov	chan_state, a
+	jnb	rev_toggle, gf_no_toggle	; Claude!: V5.2: reverse toggled for the
+	cpl	chan_state.1			; Claude!: current channel (not stored)
+gf_no_toggle:					; Claude!:
 	
 
 get_freq2:
@@ -535,6 +538,7 @@ switch_shift_load:
 	mov	r0, a
 switch_shift_update:
 	clr	chan_state.1
+	clr	rev_toggle			; Claude!: V5.2: reverse off (as before)
 	
 	mov	a, chan_state
 	cpl	acc.0
@@ -577,6 +581,7 @@ switch_shift2_load:
 	mov	r0, a
 switch_shift2_update:
 	clr	chan_state.1
+	clr	rev_toggle			; Claude!: V5.2: reverse off (as before)
 	
 	mov	a, chan_state
 	jb	Acc.0, ssm2_shift_enable
@@ -622,32 +627,18 @@ switch_reverse:
 	call	wdt_reset
 	jnb	chan_state.0, sr_end
 
-	jnb	mode2.0, switch_reverse_load		; Test if scanning, channel is not saved in the same place
-	mov	r1, chan_scan
-	jmp	switch_reverse_update
-switch_reverse_load:
-	mov	dph, #RAM_AREA_CONFIG
-	mov	dpl, #RAM_CHAN
-	movx	a, @dptr
-	mov	r1, a
-switch_reverse_update:
-	mov	dph, #RAM_AREA_STATE
-	mov	dpl, r1
-	cpl	chan_state.1
-	mov	a, chan_state
-	movx	@dptr, a
+	; Claude!: V5.2: the key only toggles reverse for the current channel
+	; Claude!: (flag rev_toggle), the reverse bit stored in the channel is not
+	; Claude!: changed any more; leaving the channel switches reverse back.
+	; Claude!: While scanning a key press only stops the scan (see buttons),
+	; Claude!: so the scanned channel (chan_scan) is not needed here any more.
+	cpl	rev_toggle			; Claude!:
 
 	setb	mode.7
 	call	get_freq
 	mov	r0, rx_freq_lo
 	mov	r1, rx_freq_hi
 	call	load_synth
-
-	; Calcul de la checksum
-	call	load_state_area_checksum
-	mov	dph, #RAM_AREA_CONFIG
-	mov	dpl, #RAM_STATE_SUM
-	movx	@dptr, a
 sr_end:
 	ret
 
@@ -770,6 +761,8 @@ ENDIF
 chan_inc:
 	jb	mode.0, sql_inc
 	jnb	mode2.0, chan_inc_load		; Test if scanning, channel is not saved in the same place
+	mov	dph, #RAM_AREA_CONFIG		; Claude!: DPTR was not set here: the channel
+	mov	dpl, #RAM_CHAN			; Claude!: was written to a random RAM address
 	mov	a, chan_scan
 	jmp	chan_inc_inc
 chan_inc_load:
@@ -792,6 +785,8 @@ chan_inc_inc:
 chan_dec:
 	jb	mode.0, sql_dec
 	jnb	mode2.0, chan_dec_load		; Test if scanning, channel is not saved in the same place
+	mov	dph, #RAM_AREA_CONFIG		; Claude!: DPTR was not set here: the channel
+	mov	dpl, #RAM_CHAN			; Claude!: was written to a random RAM address
 	mov	a, chan_scan
 	jmp	chan_dec_dec
 chan_dec_load:
@@ -809,6 +804,7 @@ chan_dec_dec:
 	mov	dpl, #RAM_CHAN
 	movx	@dptr, a
 chan_update:
+	clr	rev_toggle			; Claude!: V5.2: new channel, stored reverse
 	; Calcul de la checksum
 	call	load_config_area_checksum
 	mov	dph, #RAM_AREA_CONFIG
@@ -1002,6 +998,9 @@ switch_lo_update:
 	mov	dpl, r1
 	cpl	chan_state.3
 	mov	a, chan_state
+	jnb	rev_toggle, slo_store		; Claude!: V5.2: store the reverse bit of
+	cpl	acc.1				; Claude!: the channel, not the toggled one
+slo_store:					; Claude!:
 	movx	@dptr, a
 
 	setb	mode.7

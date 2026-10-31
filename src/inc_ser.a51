@@ -1031,6 +1031,7 @@ set_max_chan:
     JNB		XXDD_OK,fin_set_max_chan
 
 	clr		mode2.0				; Claude!: new: stop the scan (channel set to 0)
+	clr		rev_toggle			; Claude!: V5.2: new channel, stored reverse
 	mov		dph, #ram_area_config
 	mov		dpl, #ram_max_chan
 	movx	@dptr, a
@@ -1110,21 +1111,37 @@ vol_out:
 	RET
 
 set_chan_state:	
+	    ; Claude!: V5.2: while scanning, [T] stops the scan first and acts on
+	    ; Claude!: the channel being received (as [E] reports it), like a key
+	    jnb		mode2.0, scs_noscan		; Claude!:
+	    call	switch_scan_off			; Claude!:
+scs_noscan:						; Claude!:
         MOV     DPTR,#Message20 
         call    MESS_RS232
         call    DDinRS232
         JNB     XXDD_OK, scs_end
-	    mov		chan_state, a
+	    mov		r3, a				; Claude!: requested state
 		 
 	    mov		dph, #ram_area_config
 	    mov		dpl, #ram_chan
 	    movx	a, @dptr
 	    mov		r1, a
 	
+	    ; Claude!: V5.2: shift, shift + and lock out are stored as before; the
+	    ; Claude!: reverse bit only toggles reverse for the current channel
+	    ; Claude!: (as the reverse key), the stored reverse bit is kept
 	    mov		dph, #ram_area_state
 	    mov		dpl, r1
-	    mov		a, chan_state
+	    movx	a, @dptr			; Claude!: stored state
+	    anl		a, #02h				; Claude!: stored reverse bit
+	    mov		r2, a				; Claude!:
+	    mov		a, r3				; Claude!:
+	    anl		a, #0FDh			; Claude!: requested bits without reverse
+	    orl		a, r2				; Claude!: + stored reverse = new stored state
 	    movx	@dptr, a
+	    xrl		a, r3				; Claude!: bit 1 set: requested reverse
+	    mov		c, acc.1			; Claude!: differs from the stored one
+	    mov		rev_toggle, c			; Claude!:
 
 	    setb	mode.7					; Force LCD refresh
 	    call	get_freq
@@ -1141,6 +1158,12 @@ scs_end:
 	    ret
 
 set_frequencies:
+	; Claude!: V5.2: [R] stops the scan (the next scan step would overwrite
+	; Claude!: the frequencies), a toggled reverse ends
+	jnb	mode2.0, sf_noscan	; Claude!:
+	call	switch_scan_off		; Claude!:
+sf_noscan:				; Claude!:
+	clr	rev_toggle		; Claude!:
 	MOV	DPTR,#Message21    	; RX freq
         call    MESS_RS232
         call    XXinRS232
@@ -1198,7 +1221,7 @@ ELSEIF FREQ EQ 430
 			  DB   " 430"
 ENDIF
 			  DB   " Firmware (c) F4FEZ / F8EGQ / DC0CM",00Dh,00Ah
-              DB   "Version 5.0, 15/03/2021.",00Dh,00Ah
+              DB   "Version 5.2, 31/10/2026.",00Dh,00Ah	; Claude!: (was 5.0, 15/03/2021)
 			  DB   ">",0
 Message03:    DB   "P1 = $",0 
 Message04:    DB   "P2 = $",0 
@@ -1238,9 +1261,9 @@ Message39:    DB   "Mode : ",0
 
 MessageVersion: 
 IF TARGET EQ 8060
-              DB   "PRM8060 V5.1"		; Claude!: version 5.1 (was 5.0)
+              DB   "PRM8060 V5.2"		; Claude!: version 5.2 (was 5.0)
 ELSEIF TARGET EQ 8070
-              DB   "PRM8070 V5.1"		; Claude!: version 5.1 (was 5.0)
+              DB   "PRM8070 V5.2"		; Claude!: version 5.2 (was 5.0)
 ENDIF
 
 IF FREQ EQ 144
